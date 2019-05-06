@@ -1,0 +1,74 @@
+detector=ORB
+descriptor=ORB
+good_match_threshold=10
+
+# 相机内参
+camera_factor = 1000
+camera_cx=321.798
+camera_cy=239.607
+camera_fx=615.899
+camera_fy=616.468
+
+color_pic=/home/gordon/feelEnvironment/data/208_chessboard/color01.png
+#color_pic=/home/gordon/feelEnvironment/build/color.bmp
+
+
+#pcd_location=/home/gordon/feelEnvironment/data/ori_pointcloud.pcd
+pcd_location=/home/gordon/feelEnvironment/data/0416zhuzi-01-withoutIMU.pcd
+
+## downsample
+#  leaf_size: meter
+leaf_size=0.03f
+
+## statistical_filter
+#
+statistical_mean=50.0
+statistical_stddev=1.0
+
+## RegionGrowing segmentation
+# Min Cluster Size
+MinClusterSize=300
+#  topN
+cluster_num=0.8
+
+##DBSCAN
+# the distance between the neighbor points
+EPS=0.4
+# the min num of a cluster_num
+MIN_NUM=40
+
+## Moving Least Square
+# polynomial Order
+Polynomial_Order=1
+# search Radius
+Search_Radius=0.5
+
+## RanSaC for plane
+#  remain scale
+remain_scale=0.5
+#  distance threshold
+DistanceThreshold=0.08
+
+## EuclideanClusterExtraction
+#  setClusterTolerance 单位-m
+cluster_tolerance=0.65
+
+## concave hull
+# the bigger value, the low accuracy of the concave hull
+setAlpha=2
+
+## epsilon for DouglasPeucker
+# the bigger value the low accuracy
+Epsilon=0.5
+
+
+
+# the threshold to judge whether two lines are parallel. Unit: degree
+angle_threshold=15
+
+# the threshold to judge whether two lines are close enough. Unit : meter
+line_threshold=0.09
+
+
+
+
