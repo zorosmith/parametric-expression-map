@@ -3,34 +3,23 @@
 #include "accuracy_measure.h"
 
 #include <pcl/ModelCoefficients.h>
-//#include <pcl/io/pcd_io.h>
-//#include <pcl/filters/extract_indices.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/features/normal_3d.h>
 #include <pcl/kdtree/kdtree.h>
 #include <pcl/sample_consensus/method_types.h>
 #include <pcl/sample_consensus/model_types.h>
 #include <pcl/segmentation/sac_segmentation.h>
-//#include <pcl/segmentation/extract_clusters.h>
-#include <pcl/filters/statistical_outlier_removal.h>
-//#include <pcl/visualization/cloud_viewer.h>
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/filters/crop_hull.h>
 #include <pcl/features/moment_of_inertia_estimation.h>
-//#include <pcl/filters/project_inliers.h>
-// #include <pcl/surface/concave_hull.h>
-//#include <pcl/kdtree/kdtree_flann.h>
 
 #include <cmath>
+// #include <ctime>
 #include <boost/thread/thread.hpp>
 #include <Eigen/Dense>
 #include <Eigen/Geometry> 
 
-
 #include <opencv2/opencv.hpp> 
-
-
-
 
 #define pi 3.1415926
 
@@ -51,21 +40,26 @@ float leafsize = atof( pr.getData( "leaf_size" ).c_str());   // main. The leaf s
 
 float euler_tolerance = atof( pr.getData( "cluster_tolerance" ).c_str());   // main. EuclideanCluster
 
+float sfMean = atof( pr.getData( "statistical_mean" ).c_str());   //main.statistical filter
+float sfStddev = atof( pr.getData( "statistical_stddev" ).c_str());   //main.statistical filter
+
 float DB_eps = atof( pr.getData( "EPS" ).c_str());     // main. DBSCAN
 int DB_min = atoi( pr.getData( "MIN_NUM" ).c_str());   // main. DBSCAN
 
 int polynomialOrder = atoi( pr.getData( "Polynomial_Order" ).c_str());   // main. Moving_Least_Square
 float searchRadius = atof( pr.getData( "Search_Radius" ).c_str());       // main. Moving_Least_Square
 
-float cluster_num = atof( pr.getData( "cluster_num" ).c_str());  // main. parameter for RegionGrowing
+float cluster_num = atof( pr.getData( "cluster_num" ).c_str());      // main. parameter for RegionGrowing
 int MinClusterSize = atoi( pr.getData( "MinClusterSize" ).c_str());  //main. parameter for RegionGrowing
+float rgSmooth = atof( pr.getData( "rgSmooth" ).c_str());        // main. parameter for RegionGrowing
+float rgCurvature = atof( pr.getData( "rgCurvature" ).c_str());  // main. parameter for RegionGrowing
 
 float dist_thres = atof( pr.getData( "DistanceThreshold" ).c_str());   // main. parameter for RANSAC plane
 float remain_scale = atof( pr.getData( "remain_scale" ).c_str());      // main. parameter for RANSAC plane
 
 float alpha = atof( pr.getData( "setAlpha" ).c_str());  // main. Concave_Hull
 
-float epsilon = atof( pr.getData( "Epsilon" ).c_str());      // getPlaneApproxVertices. 
+float epsilon = atof( pr.getData( "Epsilon" ).c_str());  // getPlaneApproxVertices. 
 
 
 // visualizer
@@ -79,7 +73,6 @@ void visualizer_window(pcl::PointCloud<pcl::PointXYZ>::Ptr input_cloud, string w
   viewer_port.showCloud(input_cloud,"1");
   while (!viewer_port.wasStopped ())
   {}
-  
 }
 
 
@@ -264,8 +257,8 @@ Eigen::Matrix3d normals_rotate(Eigen::Vector3d in_begin, Eigen::Vector3d in_end)
     output = Rotational_Matrix(rotationAngle, rotationAxis);
     
     // Test
-    cout << "rotation matrix3d " << endl << output << endl;;
-    cout << "the result after rotating the in_begin" << endl << output*in_begin << endl;;
+    //cout << "rotation matrix3d " << endl << output << endl;;
+    //cout << "the result after rotating the in_begin" << endl << output*in_begin << endl;;
     
     return output;    
 }
@@ -357,7 +350,7 @@ void getPlaneApproxVertices(PointCloudXYZ::Ptr input_convexHull,
                              vector<pcl::PointXYZ>& output_vertices)
 {
     int num_contour = input_convexHull->points.size();
-    cout << "Now, we have : " << num_contour << endl;
+    //cout << "Now, we have PlaneApproxVertices : " << num_contour << endl;
     vector< cv::Point > uv_contour;
     
     // begin: the original normal of plane;
@@ -380,7 +373,7 @@ void getPlaneApproxVertices(PointCloudXYZ::Ptr input_convexHull,
     vector<int> approx_index;  // contour points, index
     std::tie(approx_contour, approx_index) = approx_output;
     
-    cout << "after approx the contour : " << approx_index.size()<< endl;
+    //cout << "after approx the contour : " << approx_index.size()<< endl;
 //     for(int n = 0; n < approx_contour.size(); n++)
 //     {
 //         printf ("No %d : %f, %f\n", n, approx_contour.at(n)(0), approx_contour[n](1));
@@ -467,7 +460,7 @@ void momentOfInertia(PointCloudXYZ::Ptr input_pc, std::vector<pcl::PointXYZ>& po
     if(is_viz)
     {
         boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
-        viewer->setBackgroundColor (0, 0, 0);
+        viewer->setBackgroundColor (255, 255, 255);
         viewer->addCoordinateSystem (0.1);
         viewer->initCameraParameters ();
         viewer->addPointCloud<pcl::PointXYZ> (input_pc, "sample cloud");
@@ -488,15 +481,12 @@ void momentOfInertia(PointCloudXYZ::Ptr input_pc, std::vector<pcl::PointXYZ>& po
         viewer->addLine (pt3, pt4, 1.0, 0.0, 0.0, "11 edge");
         viewer->addLine (pt3, pt7, 1.0, 0.0, 0.0, "12 edge");
 
-
         while(!viewer->wasStopped())
         {
           viewer->spinOnce (100);
           boost::this_thread::sleep (boost::posix_time::microseconds (100000));
         }
-
     }
-
 }
 
 // put points from give_sir to get_sir according to the give_sir_indices
@@ -522,6 +512,25 @@ void extract_from_labels(PointCloudPtr input_pc, vector<int> &label, PointCloudP
         if(label[i] > 0)
             output_pc->points.push_back(input_pc->points[i]);
     }
+}
+
+
+pcl::PointXYZ getCenterPoint(vector<pcl::PointXYZ> inputV){
+    int nums = inputV.size();
+    pcl::PointXYZ result;
+    result.x = 0; result.y = 0; result.z = 0;
+    
+    for (int i = 0; i < nums; i++){
+        result.x = result.x + inputV[i].x;
+        result.y = result.y + inputV[i].y;
+        result.z = result.z + inputV[i].z;
+    }
+    
+    result.x = result.x / nums;
+    result.y = result.y / nums;
+    result.z = result.z / nums;
+    
+    return result;
 }
 
 
@@ -556,26 +565,36 @@ int main (int argc, char** argv)
     
 /*--------------------- Preprocessing --------------------*/ 
 /*--------------------- voxel_grid -----------------------*/
+    start = clock();
     pcl::VoxelGrid<pcl::PointXYZ> vg;
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_voxelgrid_filtered (new pcl::PointCloud<pcl::PointXYZ>);
     vg.setInputCloud (cloud);
     vg.setLeafSize (leafsize, leafsize, leafsize);
     vg.filter (*cloud_voxelgrid_filtered);
-    std::cout << "After VoxselGrid filtering has: " << cloud_voxelgrid_filtered->points.size ()  << " points." << std::endl;
+    // std::cout << "After VoxselGrid filtering has: " << cloud_voxelgrid_filtered->points.size ()  << " points." << std::endl;
+
+/*--------------------- Preprocessing --------------------*/ 
+/*---------------- statistical filter ----------------*/
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_sf_filtered(new pcl::PointCloud<pcl::PointXYZ>);
+    StatisticalFilter(cloud_voxelgrid_filtered, cloud_sf_filtered, sfMean, sfStddev);
+    stop = clock();
+    std::cout << "After statistical filtering has: " << cloud_sf_filtered->points.size ()  << " points." << std::endl;
+
+    cout << "preprocess cost time : " << double(stop-start)/CLOCKS_PER_SEC << endl;
 
 /*--------------------- Preprocessing --------------------*/ 
 /*---------------- EuclideanCluster filter ----------------*/
     std::vector<pcl::PointIndices> euler_cluster;
-    Euclidean_Cluster_Extraction(cloud_voxelgrid_filtered, euler_cluster, euler_tolerance);
+    Euclidean_Cluster_Extraction(cloud_sf_filtered, euler_cluster, euler_tolerance);
     std::sort( euler_cluster.begin(), euler_cluster.end(), sortEuclideanIndices );
     pcl::PointCloud<pcl::PointXYZ>::Ptr euler_filtered (new pcl::PointCloud<pcl::PointXYZ>);
     PointIndices::Ptr biggest_cluster = boost::make_shared< PointIndices >(euler_cluster[0]);
 //    std::cout << "Euler PointIndices : " << *biggest_cluster << std::endl;
-    Extract_Indices (cloud_voxelgrid_filtered, euler_filtered, biggest_cluster, false);
+    Extract_Indices (cloud_sf_filtered, euler_filtered, biggest_cluster, false);
     std::cout << "After EuclideanCluster filtering has: " << euler_filtered->points.size ()  << " points." << std::endl;
 
     // visualize pointcloud
-    visualizer_window( euler_filtered, "02 statistical filter");
+    visualizer_window( euler_filtered, "02 preprocess operation");
     
 /*------------------ output pointcloud xyz as txt ----------------*/
 /*----------------------------------------------------------------*/
@@ -589,67 +608,52 @@ int main (int argc, char** argv)
     
 /*--------------------- Preprocessing --------------------*/
 /*---------------------- DBSCAN --------------------------*/
-    vector<int> labels;
-    
-    start = time(NULL);
-    int num = dbscan(euler_filtered, labels, DB_eps, DB_min);
-    stop = time(NULL);
-
-    cout << "cost time : " << stop-start << endl;
-    cout<<"DBSCAN cluster size is "<<num<<endl;
-    
-    PointCloudPtr DB_cloud (new pcl::PointCloud<pcl::PointXYZ>);
-    extract_from_labels(euler_filtered, labels, DB_cloud);
-    std::cout << "After DBSCAN filtering has: " << DB_cloud->points.size ()  << " points." << std::endl;
-    visualizer_window( DB_cloud, "DBSCAN");
-    cout << "DB_cloud points height and width : " << DB_cloud->height << " , " << DB_cloud->width << endl;
-    DB_cloud->width = DB_cloud->points.size(); DB_cloud->height = 1;
-    writer.write("/home/gordon/feelEnvironment/data/DB_withoutIMU.pcd",*DB_cloud);
-    
-/*------------------ output pointcloud xyz as txt ----------------*/
-/*----------------------------------------------------------------*/
-//     ofstream DBSCAN_fout("DBSCAN_pointcloud_xyz", ios::out); 
-//     for(int i = 0; i < DB_cloud->points.size(); i++)
-//     {
-//         DBSCAN_fout << fixed << setprecision(6) << DB_cloud->points[i].x << ' ' << DB_cloud->points[i].y << ' ' << DB_cloud->points[i].z << endl;
-//     }
-//     DBSCAN_fout.close();
-    
+//     vector<int> labels;
+//     
+//     start = time(NULL);
+//     int num = dbscan(euler_filtered, labels, DB_eps, DB_min);
+//     stop = time(NULL);
+// 
+//     cout << "cost time : " << stop-start << endl;
+//     cout<<"DBSCAN cluster size is "<<num<<endl;
+//     
+//     PointCloudPtr DB_cloud (new pcl::PointCloud<pcl::PointXYZ>);
+//     extract_from_labels(euler_filtered, labels, DB_cloud);
+//     std::cout << "After DBSCAN filtering has: " << DB_cloud->points.size ()  << " points." << std::endl;
+//     visualizer_window( DB_cloud, "DBSCAN");
+//     cout << "DB_cloud points height and width : " << DB_cloud->height << " , " << DB_cloud->width << endl;
+//     DB_cloud->width = DB_cloud->points.size(); DB_cloud->height = 1;
+//     writer.write("/home/gordon/feelEnvironment/data/DB_withoutIMU.pcd",*DB_cloud);
     
     
 /*--------------------- Preprocessing --------------------*/
 /*-------------------  MoveLeastSquare -------------------*/
-    PointCloudPtr MLS_pointcloud(new pcl::PointCloud<pcl::PointXYZ>);
-
-    Moving_Least_Square(DB_cloud, MLS_pointcloud, polynomialOrder, searchRadius);
-    std::cout << "After Moving_Least_Square filtering has: " << MLS_pointcloud->points.size ()  << " points." << std::endl;
-    visualizer_window( MLS_pointcloud, "MoveLeastSquare");
-    cout << "MLS_pointcloud points height and width : " << MLS_pointcloud->height << " , " << MLS_pointcloud->width << endl;
-    MLS_pointcloud->width = MLS_pointcloud->points.size(); MLS_pointcloud->height = 1;
-    writer.write("/home/gordon/feelEnvironment/data/MLS-withoutIMU.pcd",*MLS_pointcloud);
+//     PointCloudPtr MLS_pointcloud(new pcl::PointCloud<pcl::PointXYZ>);
+// 
+//     Moving_Least_Square(DB_cloud, MLS_pointcloud, polynomialOrder, searchRadius);
+//     std::cout << "After Moving_Least_Square filtering has: " << MLS_pointcloud->points.size ()  << " points." << std::endl;
+//     visualizer_window( MLS_pointcloud, "MoveLeastSquare");
+//     cout << "MLS_pointcloud points height and width : " << MLS_pointcloud->height << " , " << MLS_pointcloud->width << endl;
+//     MLS_pointcloud->width = MLS_pointcloud->points.size(); MLS_pointcloud->height = 1;
+//     writer.write("/home/gordon/feelEnvironment/data/MLS-withoutIMU.pcd",*MLS_pointcloud);
     
-/*------------------ output pointcloud xyz as txt ----------------*/
-/*----------------------------------------------------------------*/
-//     ofstream MLS_fout("MLS_pointcloud_xyz", ios::out); 
-//     for(int i = 0; i < MLS_pointcloud->points.size(); i++)
-//     {
-//         MLS_fout << fixed << setprecision(6) << MLS_pointcloud->points[i].x << ' ' << MLS_pointcloud->points[i].y << ' ' << MLS_pointcloud->points[i].z << endl;
-//     }
-//     MLS_fout.close();
     
 /*------------ new pointCloud ptr -----------*/
 /*-------------------------------------------*/
     PointCloudPtr pointcloud_ptr(new pcl::PointCloud<pcl::PointXYZ>);
-    pointcloud_ptr = MLS_pointcloud;
+    pointcloud_ptr = euler_filtered;
     
 /*----------------- Segmentation -----------------*/
 /*------------------------------------------------*/
     vector< pcl::PointIndices > seg_indices;
-    seg_indices = Region_Growing (pointcloud_ptr, MinClusterSize);
+    pcl::PointCloud <pcl::PointXYZRGB>::Ptr regionClusterPtr(new pcl::PointCloud <pcl::PointXYZRGB>);
+    seg_indices = Region_Growing (pointcloud_ptr, MinClusterSize, 
+                                    rgSmooth, rgCurvature, regionClusterPtr);
+    writer.write("/home/gordon/feelEnvironment/data/regionCluter.pcd",*regionClusterPtr);
     cout << "RegionGrowing : " << seg_indices.size() << endl;
     
     // sort cluster_indices; big -> small
-    sort( seg_indices.begin(), seg_indices.end(), sortEuclideanIndices );
+    std::sort( seg_indices.begin(), seg_indices.end(), sortEuclideanIndices );
     
     // get the topN pointcloud cluster
     vector<PointCloudXYZ::Ptr> seg_pointcloud;
@@ -678,7 +682,7 @@ int main (int argc, char** argv)
         visualizer_window( single_pc, "Each region growing cluster", false);
         
         // Create the segmentation object for the planar model and set all the parameters
-
+        start=clock();
         pcl::SACSegmentation<pcl::PointXYZ> seg;
         seg.setOptimizeCoefficients (true);
         seg.setModelType (pcl::SACMODEL_PLANE);
@@ -695,6 +699,8 @@ int main (int argc, char** argv)
             pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
             seg.setInputCloud (single_pc);
             seg.segment (*inliers, *coefficients);
+            stop=clock();
+            cout << "RANSAC cost time : " << double(stop-start)/CLOCKS_PER_SEC << endl;
             if (inliers->indices.size () == 0)
             {
                 std::cout << "Could not estimate a planar model for the given dataset." << std::endl;
@@ -727,7 +733,7 @@ int main (int argc, char** argv)
         extract_from_indices(plane_ptr, input_idx, pointcloud_ptr);
         plane_ptr_group.push_back(plane_ptr);
         cout << "plane size : " << plane_ptr->points.size() << endl;
-        visualizer_window(plane_ptr, "Plane sequence obtained from pointcloud segmentation", false);
+        visualizer_window(plane_ptr, "Plane sequence obtained from pointcloud segmentation", true);
     }
     cout << "Finish extracting plane points from pointcloud_ptr" << endl;
 
@@ -750,44 +756,87 @@ int main (int argc, char** argv)
 
         // get plane contours
         pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_hull (new pcl::PointCloud<pcl::PointXYZ>);
+        start=clock();
         Concave_Hull(single_plane_project, cloud_hull, alpha);
+        stop=clock();
+        cout << "get contour cost time : " << double(stop-start)/CLOCKS_PER_SEC << endl;
 //      writer.write("/home/csl/catkin_ws/src/octree1/data/pc_contour1.pcd",*cloud_hull);
         visualizer_window( cloud_hull, "08 cloud hull after crop hull filtering", true);
 
         // get plane Vertices and store for later usage
         std::vector<pcl::PointXYZ> contour_points;
+        start=clock();
         getPlaneApproxVertices(cloud_hull, single_coefficient_ptr, contour_points);
+        stop=clock();
+        cout << "Douglas-Peucker cost time : " << double(stop-start)/CLOCKS_PER_SEC << endl;
         plane_vertices_group.push_back(contour_points);
+
+        // output plane modelCoefficients
+        cout << "plane " << i << " coefficient : " << endl << *single_coefficient_ptr << endl;
     }
     
     
 /*------------------ output pointcloud xyz as txt ----------------*/
 /*----------------------------------------------------------------*/
-//     ofstream vertex_fout("plane_contour_xyz", ios::out);
-//     for(int i = 0; i < plane_vertices_group.size(); i++)
-//     {
-//         vertex_fout << i+1 << " plane : " << endl;
-//         for(int j=0; j<plane_vertices_group[i].size(); j++)
-//         {
-//             vertex_fout << plane_vertices_group[i][j].x << ',' << plane_vertices_group[i][j].y << ',' << plane_vertices_group[i][j].z << endl;
-//         }
-//         vertex_fout <<  " ****************** " << endl;
-//     }
-//     vertex_fout.close();
-    
+    ofstream vertex_fout("plane_contour_xyz", ios::out);
+    for(int i = 0; i < plane_vertices_group.size(); i++)
+    {
+        vertex_fout << i+1 << " plane : " << endl;
+        for(int j=0; j<plane_vertices_group[i].size(); j++)
+        {
+            vertex_fout << plane_vertices_group[i][j].x << ',' << plane_vertices_group[i][j].y << ',' << plane_vertices_group[i][j].z << endl;
+        }
+        pcl::PointXYZ centerPoint;
+        centerPoint = getCenterPoint(plane_vertices_group[i]);
+        vertex_fout << "center point : " << centerPoint.x << "," << centerPoint.y << "," << centerPoint.z << endl;
+        vertex_fout <<  " ****************** " << endl;
+    }
+    vertex_fout.close();
     
 /*---------------------------- visualization ----------------------------*/
 /*-----------------------------------------------------------------------*/
+    // color table
+    Eigen::MatrixXd colorMat(8,3); // red green blue yellow purple orange while darkgreen
+    colorMat << 1.0, 0.0, 0.0,
+                0.0, 1.0, 0.0,
+                0.0, 0.0, 1.0,
+                1.0, 1.0, 0.0,
+                0.627, 0.125, 0.941,
+                1.0, 0.647, 0.0,
+                1.0, 1.0, 1.0,
+                0.0, 0.392, 0.0;
+                
+    map<int, string> colorList;
+    colorList[1] = "red";
+    colorList[2] = "green";
+    colorList[3] = "blue";
+    colorList[4] = "yellow";
+    colorList[5] = "purple";
+    colorList[6] = "orange";
+    colorList[7] = "while";
+    colorList[8] = "darkgreen";
+    //map[2] = "green";
+    map<int, string>::iterator iter;
+    
+    for(iter = colorList.begin(); iter != colorList.end(); iter++){
+        cout << iter->first << " " << iter->second << endl;
+    }
+                
+
     boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer_1 (new visualization::PCLVisualizer ("3D Viewer"));
     viewer_1->setBackgroundColor (0, 0, 0);
     viewer_1->addCoordinateSystem (0.5);
-    viewer_1->initCameraParameters ();
+    //viewer_1->initCameraParameters ();
     std::stringstream num_str;
     int line_num =0;
     
-     pcl::PointXYZ p1;
-     p1.x = 0;    p1.y = 0; p1.z = 0;
-     viewer_1->addSphere (p1, 0.2, 1, 0, 0, "sphere1");
+//     // add map original
+//     pcl::PointXYZ p1;
+//     p1.x = 0;    p1.y = 0; p1.z = 0;
+//     viewer_1->addSphere (p1, 0.2, 1, 0, 0, "sphere1");
+
+//     // TEST: add a plane
+//     viewer_1->addPlane (seg_plane_ModelCoefficients[0], "plane0");
 
 
     for(int i=0; i<plane_vertices_group.size(); i++)
@@ -797,11 +846,13 @@ int main (int argc, char** argv)
             num_str.clear();
             num_str<<"edge "<<line_num;
             
-            viewer_1->addLine (plane_vertices_group[i][j], plane_vertices_group[i][j+1], 0.0, 1.0, 0.0, "edge_"+num_str.str());
+            viewer_1->addLine (plane_vertices_group[i][j], plane_vertices_group[i][j+1], colorMat(i,0), colorMat(i,1), colorMat(i,2), "edge_"+num_str.str());
             if(j==plane_vertices_group[i].size()-2)
-                viewer_1->addLine (plane_vertices_group[i][j+1], plane_vertices_group[i][0], 0.0, 1.0, 0.0, "edge_closure"+num_str.str());
+                viewer_1->addLine (plane_vertices_group[i][j+1], plane_vertices_group[i][0], colorMat(i,0), colorMat(i,1), colorMat(i,2), "edge_closure"+num_str.str());
             line_num++;
         }
+        
+        
     }
 
     while(!viewer_1->wasStopped())
@@ -824,45 +875,6 @@ int main (int argc, char** argv)
         //visualizer_window( input_pointcloud, "remove all plane" );
         //cout << "after removing a cluster of plane pointcloud, it still has : " << input_pointcloud->points.size() << endl;
     }
-    
-    
-// /*------------ find plane in large clusters that fail to be segmented ----------*/
-// /*------------------------------------------------------------------------------*/
-//     // remove the NAN points in input_pointcloud
-//     std::vector<int> mapping;
-//     pcl::removeNaNFromPointCloud(*input_pointcloud, *input_pointcloud, mapping);
-//     cout << "After remove NAN, input_pointcloud size : " << input_pointcloud->points.size() << endl;
-//     
-//     std::vector<pcl::PointIndices> cluster_idies;
-//     PointCloudXYZ::Ptr cluster_pc(new PointCloudXYZ);
-//     float cluster_tolerance = atof( pr.getData( "cluster_tolerance" ).c_str());
-//     Euclidean_Cluster_Extraction(input_pointcloud, cluster_idies, cluster_tolerance);
-//     cout << "size of cluster_idies : " << cluster_idies.size() << endl;
-//     for (int m = 0; m < cluster_idies.size(); m++)
-//     {
-//         PointIndices::Ptr single_cluster_ptr = boost::make_shared< PointIndices >(cluster_idies[m]);
-//         Extract_Indices (input_pointcloud, cluster_pc, single_cluster_ptr, false);
-//         cout << "extract cluster size : " << cluster_pc->points.size() << endl;
-//         visualizer_window( cluster_pc, "EuclideanClusterExtraction find all clusters");
-//         cout << "extract cluster pointcloud" << endl;
-//     }
-    
-
-
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-
-
 
 
   return (0);

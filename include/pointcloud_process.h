@@ -2,6 +2,7 @@
 #define POINTCLOUD_PROCESS_H
 
 #include "my_point_cloud.h"
+#include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/segmentation/region_growing.h>
 #include <pcl/filters/extract_indices.h>
 #include <pcl/filters/project_inliers.h>
@@ -17,31 +18,21 @@ using namespace std;
 /*-----------------------------------------------------------------------*/
 /*------------------------- pointcloud filter ---------------------------*/
 
-// add statistical filter to remove outliers
-//     float statistical_mean = atof( pr.getData( "statistical_mean" ).c_str());
-//     float statistical_stddev = atof( pr.getData( "statistical_stddev" ).c_str());
-//     
-//     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_statistical_filtered (new pcl::PointCloud<pcl::PointXYZ>);
-//     pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
-//     sor.setInputCloud(cloud_voxelgrid_filtered);
-//     sor.setMeanK(statistical_mean);
-//     sor.setStddevMulThresh(statistical_stddev);
-//     sor.filter(*cloud_statistical_filtered);
-//     std::cout << "PointCloud after Statistical filtering has: " << cloud_statistical_filtered->points.size ()  << " points." << std::endl;
-
-
-
-
-
-
-
-
-
+// statistical filter
+void StatisticalFilter(const PointCloudPtr input_pc, PointCloudPtr output_pc, const float sfMean, const float sfStddev)
+{
+    pcl::StatisticalOutlierRemoval<PointXYZ> sor;
+    sor.setInputCloud(input_pc);
+    sor.setMeanK(sfMean);
+    sor.setStddevMulThresh(sfStddev);
+    sor.filter(*output_pc);
+}
 
 
 /*-----------------------------------------------------------------------*/
 /*------------------------- pointcloud segmentation ---------------------*/
-std::vector<pcl::PointIndices> Region_Growing (PointCloudPtr input_pc, int min_num)
+std::vector<pcl::PointIndices> Region_Growing (PointCloudPtr input_pc, int min_num, float rgSmooth, float rgCurvature,
+                                                pcl::PointCloud <pcl::PointXYZRGB>::Ptr & colored_cloud)
 {
     pcl::search::Search<PointXYZ>::Ptr tree = boost::shared_ptr<pcl::search::Search<PointXYZ> > (new pcl::search::KdTree<PointXYZ>);
     pcl::PointCloud <pcl::Normal>::Ptr normals (new pcl::PointCloud <pcl::Normal>);
@@ -52,6 +43,9 @@ std::vector<pcl::PointIndices> Region_Growing (PointCloudPtr input_pc, int min_n
     normal_estimator.setKSearch (50);
     normal_estimator.compute (*normals);
 
+    time_t start, stop;
+
+    start=clock();
     pcl::RegionGrowing<pcl::PointXYZ, pcl::Normal> reg;
     reg.setMinClusterSize (min_num);
     reg.setMaxClusterSize (1000000);
@@ -60,13 +54,15 @@ std::vector<pcl::PointIndices> Region_Growing (PointCloudPtr input_pc, int min_n
     reg.setInputCloud (input_pc);
     //reg.setIndices (indices);   对经过直通滤波的部分点云进行处理，不需要对全局点云进行处理
     reg.setInputNormals (normals);
-    reg.setSmoothnessThreshold (5.0 / 180.0 * M_PI);
-    reg.setCurvatureThreshold (0.5);
+    reg.setSmoothnessThreshold (rgSmooth / 180.0 * M_PI);
+    reg.setCurvatureThreshold (rgCurvature);
 
     std::vector <pcl::PointIndices> clusters;
     reg.extract (clusters);
+    stop=clock();
+    cout << "segmentation cost time : " << double(stop-start)/CLOCKS_PER_SEC << endl;
     
-    pcl::PointCloud <pcl::PointXYZRGB>::Ptr colored_cloud = reg.getColoredCloud ();
+    colored_cloud = reg.getColoredCloud ();
     pcl::visualization::CloudViewer viewer_RG ("RegionGrowing");
     viewer_RG.showCloud(colored_cloud);
     while (!viewer_RG.wasStopped ())
@@ -77,7 +73,7 @@ std::vector<pcl::PointIndices> Region_Growing (PointCloudPtr input_pc, int min_n
 }
 
 
-void Euclidean_Cluster_Extraction(PointCloudPtr input_pc, vector<pcl::PointIndices> &output_indices, float toler)
+void Euclidean_Cluster_Extraction(const PointCloudPtr input_pc, vector<pcl::PointIndices> &output_indices, float toler)
 {
     pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
     tree->setInputCloud (input_pc);
@@ -89,7 +85,6 @@ void Euclidean_Cluster_Extraction(PointCloudPtr input_pc, vector<pcl::PointIndic
     ec.setSearchMethod (tree);
     ec.setInputCloud (input_pc);
     ec.extract (output_indices);
-    
 }
 
 
@@ -154,15 +149,12 @@ void getPointXYZ(pcl::PointCloud<pcl::PointNormal> &input_pointnormal, PointClou
         point.z = input_pointnormal.points[i].z;
         output_pc->points.push_back(point);
     }
-    
 }
 
 /*-----------------------------------------------------------------------*/
 /*------------------------- pointcloud reconstruct ---------------------*/     
 void Moving_Least_Square(PointCloudPtr input_pc, PointCloudPtr output_pc, int polynomialOrder, float searchRadius)
 {
-    
-
     // Create a KD-Tree
     pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
 

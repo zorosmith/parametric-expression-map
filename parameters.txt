@@ -12,30 +12,32 @@ camera_fy=616.468
 color_pic=/home/gordon/feelEnvironment/data/208_chessboard/color01.png
 #color_pic=/home/gordon/feelEnvironment/build/color.bmp
 
-
-#pcd_location=/home/gordon/feelEnvironment/data/ori_pointcloud.pcd
-pcd_location=/home/gordon/feelEnvironment/data/0416zhuzi-01-withoutIMU.pcd
+#pcd_location=/home/gordon/feelEnvironment/data/one-shot/0618/unorganized/1560865769249704.pcd
+pcd_location=/home/gordon/feelEnvironment/data/ori_pointcloud.pcd
+#pcd_location=/home/gordon/feelEnvironment/data/0416zhuzi-01-withoutIMU.pcd
 
 ## downsample
 #  leaf_size: meter
-leaf_size=0.03f
+leaf_size=0.02f
 
 ## statistical_filter
 #
-statistical_mean=50.0
+statistical_mean=190.0
 statistical_stddev=1.0
 
 ## RegionGrowing segmentation
+rgSmooth=5.0
+rgCurvature=0.6
 # Min Cluster Size
-MinClusterSize=300
+MinClusterSize=2000
 #  topN
-cluster_num=0.8
+cluster_num=1.0
 
 ##DBSCAN
 # the distance between the neighbor points
-EPS=0.4
+EPS=0.10
 # the min num of a cluster_num
-MIN_NUM=40
+MIN_NUM=70
 
 ## Moving Least Square
 # polynomial Order
@@ -47,19 +49,19 @@ Search_Radius=0.5
 #  remain scale
 remain_scale=0.5
 #  distance threshold
-DistanceThreshold=0.08
+DistanceThreshold=0.03
 
 ## EuclideanClusterExtraction
 #  setClusterTolerance 单位-m
-cluster_tolerance=0.65
+cluster_tolerance=0.5
 
 ## concave hull
 # the bigger value, the low accuracy of the concave hull
-setAlpha=2
+setAlpha=1.0
 
 ## epsilon for DouglasPeucker
 # the bigger value the low accuracy
-Epsilon=0.5
+Epsilon=0.1
 
 
 
@@ -68,7 +70,3 @@ angle_threshold=15
 
 # the threshold to judge whether two lines are close enough. Unit : meter
 line_threshold=0.09
-
-
-
-
