@@ -13,7 +13,7 @@ color_pic=/home/gordon/feelEnvironment/data/208_chessboard/color01.png
 #color_pic=/home/gordon/feelEnvironment/build/color.bmp
 
 #pcd_location=/home/gordon/feelEnvironment/data/one-shot/0618/unorganized/1560865769249704.pcd
-pcd_location=/home/gordon/feelEnvironment/data/ori_pointcloud.pcd
+pcd_location=/home/gordon/feelEnvironment/data/data04_29w.pcd
 #pcd_location=/home/gordon/feelEnvironment/data/0416zhuzi-01-withoutIMU.pcd
 
 ## downsample
@@ -22,8 +22,8 @@ leaf_size=0.02f
 
 ## statistical_filter
 #
-statistical_mean=190.0
-statistical_stddev=1.0
+statistical_mean=80.0
+statistical_stddev=10.0
 
 ## RegionGrowing segmentation
 rgSmooth=5.0
@@ -53,14 +53,14 @@ DistanceThreshold=0.03
 
 ## EuclideanClusterExtraction
 #  setClusterTolerance 单位-m
-cluster_tolerance=0.5
+cluster_tolerance=0.3
 
 ## concave hull
 # the bigger value, the low accuracy of the concave hull
 setAlpha=1.0
 
 ## epsilon for DouglasPeucker
-# the bigger value the low accuracy
+# the bigger value the lower accuracy
 Epsilon=0.1
 
 

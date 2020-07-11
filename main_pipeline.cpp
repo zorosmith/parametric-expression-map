@@ -264,6 +264,17 @@ Eigen::Matrix3d normals_rotate(Eigen::Vector3d in_begin, Eigen::Vector3d in_end)
 }
 
 
+void PrintVertex(const std::vector<pcl::PointXYZ>& vertex_vec)
+{
+    for(int i = 0; i < vertex_vec.size(); ++i)
+    {
+        std::cout << "vertex " << i << " : " << vertex_vec[i].x << ", " <<
+                         vertex_vec[i].y << ", " << vertex_vec[i].z << std::endl;
+
+    }
+}
+
+
 // calibrate the plane coordinate
 void calibrate_coordinate(PointCloudXYZ::Ptr input, vector<Eigen::Vector3d>& output, Eigen::Matrix3d rotation)
 {
@@ -283,7 +294,7 @@ void calibrate_coordinate(PointCloudXYZ::Ptr input, vector<Eigen::Vector3d>& out
     
 // approx contour
 // https://en.wikipedia.org/wiki/Ramer%E2%80%93Douglas%E2%80%93Peucker_algorithm
-// 1 point; 2 point indices
+// return 1 point; 2 point indices
 tuple<vector< Eigen::Vector3d >, vector<int>> DouglasPeucker( vector< Eigen::Vector3d > input_list, 
                                                        double epsilon, 
                                                        int begin_idx = 0)
@@ -345,7 +356,7 @@ tuple<vector< Eigen::Vector3d >, vector<int>> DouglasPeucker( vector< Eigen::Vec
 }
 
 
-void getPlaneApproxVertices(PointCloudXYZ::Ptr input_convexHull,
+void getPlaneApproxVertices(const PointCloudXYZ::Ptr input_convexHull,
                              ModelCoefficients::Ptr input_coefficients,
                              vector<pcl::PointXYZ>& output_vertices)
 {
@@ -769,10 +780,12 @@ int main (int argc, char** argv)
         getPlaneApproxVertices(cloud_hull, single_coefficient_ptr, contour_points);
         stop=clock();
         cout << "Douglas-Peucker cost time : " << double(stop-start)/CLOCKS_PER_SEC << endl;
+
         plane_vertices_group.push_back(contour_points);
 
-        // output plane modelCoefficients
+        // output plane modelCoefficients and vertex
         cout << "plane " << i << " coefficient : " << endl << *single_coefficient_ptr << endl;
+        PrintVertex(contour_points);
     }
     
     
@@ -877,5 +890,5 @@ int main (int argc, char** argv)
     }
 
 
-  return (0);
+    return (0);
 }

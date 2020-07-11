@@ -13,7 +13,7 @@ void pcd2txt(pcl::PointCloud<pcl::PointXYZI>::Ptr pcdPtr)
 {
     /*------------------ output pointcloud xyz as txt ----------------*/
     /*----------------------------------------------------------------*/
-    std::ofstream xyz_txt("/home/gordon/feelEnvironment/data/segByCloudCompare/raw_pointcloud/pointcloud_xyz.txt", std::ios::out); 
+    std::ofstream xyz_txt("/home/gordon/feelEnvironment/data/segByCloudCompare/raw_pointcloud/data04_29w.txt", std::ios::out); 
     for(int i = 0; i < pcdPtr->points.size(); i++)
     {
         xyz_txt << std::fixed << std::setprecision(6) << pcdPtr->points[i].x << ' ' << pcdPtr->points[i].y << ' ' << pcdPtr->points[i].z << std::endl;
@@ -23,7 +23,7 @@ void pcd2txt(pcl::PointCloud<pcl::PointXYZI>::Ptr pcdPtr)
 
 
 void txt2pcd(pcl::PointCloud<pcl::PointXYZ>::Ptr pcdPtr){
-    std::ifstream fin("/home/gordon/feelEnvironment/data/segByCloudCompare/326room.txt", std::ios::in);
+    std::ifstream fin("/home/gordon/feelEnvironment/data/segByCloudCompare/326_0604.txt", std::ios::in);
     int row;
     fin >> row;
     std::cout << "row size = " << row << std::endl;
@@ -51,29 +51,29 @@ void txt2pcd(pcl::PointCloud<pcl::PointXYZ>::Ptr pcdPtr){
 int main (int argc, char** argv)
 {
 //     pcd to txt
-    // pcl::PCDReader reader;
-    // pcl::PointCloud<pcl::PointXYZI>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZI>);
+    pcl::PCDReader reader;
+    pcl::PointCloud<pcl::PointXYZI>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZI>);
     
-    // std::string fileLocation = "/home/gordon/feelEnvironment/data/segByCloudCompare/raw_pointcloud/xyz02.pcd";
-    // reader.read(fileLocation,*cloud);
+    std::string fileLocation = "/home/gordon/feelEnvironment/data/segByCloudCompare/raw_pointcloud/data04_29w.pcd";
+    reader.read(fileLocation,*cloud);
     
-    // std::cout << "ori_pointcloud size = "<< cloud->points.size() << std::endl;
-    // std::cout << "width = " << cloud->width << "; height = " << cloud->height << std::endl;
-    // std::cout << "sensor origin : " << cloud->sensor_origin_ << std::endl;
-    // std::cout << "sensor orientation : " << cloud->sensor_orientation_.coeffs() << std::endl;
+    std::cout << "ori_pointcloud size = "<< cloud->points.size() << std::endl;
+    std::cout << "width = " << cloud->width << "; height = " << cloud->height << std::endl;
+    std::cout << "sensor origin : " << cloud->sensor_origin_ << std::endl;
+    std::cout << "sensor orientation : " << cloud->sensor_orientation_.coeffs() << std::endl;
     
-    // pcd2txt(cloud);
+    pcd2txt(cloud);
 
 
-    // txt to pcd
-    pcl::PCDWriter writer;
+    // // txt to pcd
+    // pcl::PCDWriter writer;
     
-    pcl::PointCloud<pcl::PointXYZ>::Ptr segCloud(new pcl::PointCloud<pcl::PointXYZ>);
-    txt2pcd(segCloud);
-    segCloud->width = segCloud->size();
-    segCloud->height = 1;
+    // pcl::PointCloud<pcl::PointXYZ>::Ptr segCloud(new pcl::PointCloud<pcl::PointXYZ>);
+    // txt2pcd(segCloud);
+    // segCloud->width = segCloud->size();
+    // segCloud->height = 1;
     
-    writer.write("/home/gordon/feelEnvironment/data/segByCloudCompare/xyz326room.pcd", *segCloud);
+    // writer.write("/home/gordon/feelEnvironment/data/segByCloudCompare/326_0604.pcd", *segCloud);
     
 
     return 0;
